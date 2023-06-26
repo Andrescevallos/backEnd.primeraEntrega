@@ -1,43 +1,117 @@
-class ProductManager {
-    products;
-    static correlatavoId = 0;
-    constructor() {
-        this.product = []
+import {read, write, deleteFile } from "./util.js";
+import crypto from "crypto";
+
+export class ProductManager {
+  constructor(path) {
+    this.path = path;
+    this.products = [];
+  }
+  async addProduct(title, description, price, thumbnail, code, stock) {
+
+    if (
+      title == undefined ||
+      description == undefined ||
+      price == undefined ||
+      thumbnail == undefined ||
+      code == undefined ||
+      stock == undefined
+    ) {
+      throw new Error("Todos los campos son obligatorios");
     }
-}
+    try {
+      let data = await read(this.path);
+      this.products = data?.length > 0 ? data : [];
+    } catch (error) {
+      console.log(error);
+    }
 
+    let codeExists = this.products.some((dato) => dato.code == code);
 
- const addProduct = (code, title, description, price, thumbnail, stock) => {
-
-    let existe = this.products.find((item) => item.code === code)
-    if (existe) {
-        console.log("el codigo ya existe")
+    if (codeExists) {
+      throw new Error("El codigo ya existe por favor verifique");
     } else {
-        ProductManager.correlatavoId++;
-        const newProduct = {
-            code: ProductManager.correlatavoId,
-            title,
-            description,
-            price,
-            thumbnail,
-            stock
-        }
-
-        this.products.push(newProduct)
+      const newProduct = {
+        id: crypto.randomUUID(),
+        title,
+        description,
+        price,
+        thumbnail,
+        code,
+        stock,
+      };
+      this.products.push(newProduct);
+      try {
+        await write(this.path, this.products);
+      } catch (error) {
+        console.log(error);
+      }
     }
-}
 
-const getProduct = () => {
-    return this.products;
-}
-
-
-const getProductById = (id) => {
-    let product = this.products.find((item) => item.id === id )
-
-    if(product !== undefined){
-        return product
-    } else{
-        return "“Not found"
+  }
+  async getProducts() {
+    try {
+      let data = await read(this.path);
+      return data?.length > 0 ? this.products : "aun no hay registros";
+    } catch (error) {
+      console.log(error);
     }
+  }
+  async getProductById(id) {
+    try {
+      let data = await read(this.path);
+      this.products = data?.length > 0 ? data : [];
+      let product = this.products.find((dato) => dato.id === id);
+
+      if (product !== undefined) {
+        return product;
+      } else {
+        return "no existe el producto solicitado";
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async updateProductById(id, data) {
+    try {
+      let products = await read(this.path);
+      this.products = products?.length > 0 ? products : [];
+
+      let productIndex = this.products.findIndex((dato) => dato.id === id);
+      if (productIndex !== -1) {
+        this.products[productIndex] = {
+          ...this.products[productIndex],
+          ...data,
+        };
+        await write(this.path, products);
+        return {
+          mensaje: "producto actualizado",
+          producto: this.products[productIndex],
+        };
+      } else {
+        return { mensaje: "no existe el producto solicitado" };
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async deleteProductById(id) {
+    try {
+      let products = await read(this.path);
+      this.products = products?.length > 0 ? products : [];
+      let productIndex = this.products.findIndex((dato) => dato.id === id);
+      if (productIndex !== -1) {
+        let product = this.products[productIndex];
+        this.products.splice(productIndex, 1);
+        await write(this.path, products);
+        return { mensaje: "producto eliminado", producto: product };
+      } else {
+        return { mensaje: "no existe el producto solicitado" };
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
 }
+
